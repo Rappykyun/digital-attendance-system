@@ -22,7 +22,7 @@ export default withAuth(
   },
   {
     callbacks: {
-      authorized: ({ token }) => !!token, // Allow access only if the token exists
+      authorized: ({ token }) => !!token,
     },
   }
 );

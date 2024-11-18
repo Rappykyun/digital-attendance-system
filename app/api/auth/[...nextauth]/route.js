@@ -30,6 +30,8 @@ const authOptions = {
           await mongoose.connect(process.env.MONGODB_URI);
         }
 
+        const isStudent = profile.email.endsWith("@sksu.edu.ph");
+        
         let dbUser = await User.findOne({ email: profile.email });
         
         if (!dbUser) {
@@ -37,7 +39,7 @@ const authOptions = {
             email: profile.email,
             name: profile.name,
             image: profile.picture,
-            role: "student",
+            role: isStudent ? "student" : "admin",
             registeredAt: new Date(),
           });
         }
