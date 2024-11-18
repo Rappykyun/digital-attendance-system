@@ -4,19 +4,29 @@ import { NextResponse } from "next/server";
 export default withAuth(
   function middleware(req) {
     const token = req.nextauth.token;
-    const isAdminRoute = req.nextUrl.pathname.startsWith("/admin");
 
-    if (isAdminRoute && token?.role !== "admin") {
+    if (!token) {
       return NextResponse.redirect(new URL("/", req.url));
+    }
+
+    const isAdminRoute = req.nextUrl.pathname.startsWith("/admin");
+    const isDashboardRoute = req.nextUrl.pathname.startsWith("/dashboard");
+
+    if (isAdminRoute && token.role !== "admin") {
+      return NextResponse.redirect(new URL("/dashboard", req.url));
+    }
+
+    if (isDashboardRoute && token.role !== "student") {
+      return NextResponse.redirect(new URL("/admin", req.url));
     }
   },
   {
     callbacks: {
-      authorized: ({ token }) => !!token,
+      authorized: ({ token }) => !!token, // Allow access only if the token exists
     },
   }
 );
 
 export const config = {
-  matcher: ["/admin/:path*", "/dashboard/:path*"],
+  matcher: ["/dashboard/:path*", "/admin/:path*"],
 };

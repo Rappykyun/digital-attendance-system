@@ -1,37 +1,80 @@
 import NextAuth from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
-import { MongoDBAdapter } from "@auth/mongodb-adapter";
+import { User } from "@/lib/database/models/User";
 import clientPromise from "@/lib/database/connection";
+import { MongoDBAdapter } from "@auth/mongodb-adapter";
 
-const handler = NextAuth({
+import mongoose from "mongoose";
+
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
+
+const authOptions = {
+  adapter: MongoDBAdapter(clientPromise),
   providers: [
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      authorization: {
-        params: {
-          scope: 'openid email profile'
-        }
-      },
-      profile(profile) {
-        return {
-          id: profile.sub,
-          name: profile.name,
-          email: profile.email,
-          image: profile.picture,
-          role: profile.email.endsWith("@sksu.edu.ph") ? "student" : "admin",
-        };
-      },
+      clientId: GOOGLE_CLIENT_ID,
+      clientSecret: GOOGLE_CLIENT_SECRET,
+      allowDangerousEmailAccountLinking: true,
     }),
   ],
   callbacks: {
-    async session({ session, user }) {
-      session.user.role = user.role;
-      session.user.id = user.id;
-      return session;
-    },
-  },
-  adapter: MongoDBAdapter(clientPromise),
-});
+    async signIn({ user, account, profile }) {
+      if (!profile?.email_verified) {
+        console.log("Email not verified");
+        return false;
+      }
 
-export { handler as GET, handler as POST };
+      try {
+        if (mongoose.connection.readyState !== 1) {
+          await mongoose.connect(process.env.MONGODB_URI);
+        }
+
+        let dbUser = await User.findOne({ email: profile.email });
+        
+        if (!dbUser) {
+          dbUser = await User.create({
+            email: profile.email,
+            name: profile.name,
+            image: profile.picture,
+            role: "student",
+            registeredAt: new Date(),
+          });
+        }
+
+        user.role = dbUser.role;
+        user.id = dbUser._id.toString();
+        
+        return true;
+      } catch (error) {
+        console.error("Error during sign in:", error);
+        return false;
+      }
+    },
+    async jwt({ token, user, account }) {
+      if (account && user) {
+        token.role = user.role;
+        token.id = user.id;
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      if (session?.user) {
+        session.user.role = token.role;
+        session.user.id = token.id;
+      }
+      return session;
+    }
+  },
+  session: {
+    strategy: "jwt",
+  },
+  pages: {
+    signIn: "/",
+    error: "/",
+    signOut: "/",
+  },
+};
+
+const handler = NextAuth(authOptions);
+export { handler as GET, handler as POST, authOptions };
