@@ -31,9 +31,9 @@ const authOptions = {
         }
 
         const isStudent = profile.email.endsWith("@sksu.edu.ph");
-        
+
         let dbUser = await User.findOne({ email: profile.email });
-        
+
         if (!dbUser) {
           dbUser = await User.create({
             email: profile.email,
@@ -46,7 +46,7 @@ const authOptions = {
 
         user.role = dbUser.role;
         user.id = dbUser._id.toString();
-        
+
         return true;
       } catch (error) {
         console.error("Error during sign in:", error);
@@ -66,7 +66,7 @@ const authOptions = {
         session.user.id = token.id;
       }
       return session;
-    }
+    },
   },
   session: {
     strategy: "jwt",

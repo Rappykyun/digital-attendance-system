@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { signOut } from "next-auth/react";
+import AdminNav from "@/components/AdminNav";
 
 export default function AdminLayout({ children }) {
   const { data: session, status } = useSession({
@@ -61,8 +62,15 @@ export default function AdminLayout({ children }) {
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="flex-1 container mx-auto px-4 py-8">{children}</main>
+      <div className="flex-1 container mx-auto px-4 py-8 flex gap-8">
+        {/* Sidebar */}
+        <aside className="w-64 shrink-0">
+          <AdminNav />
+        </aside>
+
+        {/* Main Content */}
+        <main className="flex-1">{children}</main>
+      </div>
 
       {/* Footer */}
       <footer className="border-t py-4">
