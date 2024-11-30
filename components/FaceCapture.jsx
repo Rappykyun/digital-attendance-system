@@ -3,14 +3,12 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Camera } from "lucide-react";
 import * as faceapi from "face-api.js";
-import { useToast } from "@/hooks/use-toast";
 
-export default function FaceRecognition({ onSuccess, isLoading }) {
-  const { toast } = useToast();
+export default function FaceCapture({ onCapture }) {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [isCameraActive, setIsCameraActive] = useState(false);
-  const [isModelLoading, setIsModelLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -25,7 +23,7 @@ export default function FaceRecognition({ onSuccess, isLoading }) {
 
   const loadModels = async () => {
     try {
-      setIsModelLoading(true);
+      setIsLoading(true);
       const MODEL_URL = "https://raw.githubusercontent.com/Rappykyun/face-api.js/master/weights";
       await Promise.all([
         faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
@@ -35,7 +33,7 @@ export default function FaceRecognition({ onSuccess, isLoading }) {
     } catch (error) {
       setError("Failed to load face detection models");
     } finally {
-      setIsModelLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -66,8 +64,8 @@ export default function FaceRecognition({ onSuccess, isLoading }) {
     }
   };
 
-  const verifyFace = async () => {
-    if (!videoRef.current || isLoading) return;
+  const captureImage = async () => {
+    if (!videoRef.current) return;
 
     try {
       const detections = await faceapi.detectSingleFace(videoRef.current)
@@ -75,22 +73,15 @@ export default function FaceRecognition({ onSuccess, isLoading }) {
         .withFaceDescriptor();
 
       if (!detections) {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "No face detected. Please ensure your face is clearly visible.",
-        });
+        setError("No face detected. Please ensure your face is clearly visible.");
         return;
       }
 
-      onSuccess(detections.descriptor);
+      onCapture(detections.descriptor);
+      setError("");
     } catch (error) {
-      console.error("Error verifying face:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to verify face. Please try again.",
-      });
+      console.error("Error capturing face:", error);
+      setError("Failed to capture face. Please try again.");
     }
   };
 
@@ -119,13 +110,13 @@ export default function FaceRecognition({ onSuccess, isLoading }) {
           className={`w-full h-full object-cover ${isCameraActive ? "" : "hidden"}`}
         />
         
-        {!isCameraActive && !isModelLoading && (
+        {!isCameraActive && !isLoading && (
           <div className="absolute inset-0 flex items-center justify-center bg-muted">
             <Camera className="h-12 w-12 text-muted-foreground" />
           </div>
         )}
 
-        {isModelLoading && (
+        {isLoading && (
           <div className="absolute inset-0 flex items-center justify-center bg-muted">
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-r-transparent" />
           </div>
@@ -137,7 +128,7 @@ export default function FaceRecognition({ onSuccess, isLoading }) {
           type="button"
           variant={isCameraActive ? "destructive" : "secondary"}
           onClick={toggleCamera}
-          disabled={isModelLoading || isLoading}
+          disabled={isLoading}
           className="flex-1"
         >
           {isCameraActive ? "Stop Camera" : "Start Camera"}
@@ -146,21 +137,13 @@ export default function FaceRecognition({ onSuccess, isLoading }) {
         {isCameraActive && (
           <Button
             type="button"
-            onClick={verifyFace}
-            disabled={isLoading}
+            onClick={captureImage}
             className="flex-1"
           >
-            {isLoading ? (
-              <>
-                <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-current mr-2" />
-                Verifying...
-              </>
-            ) : (
-              "Verify Face"
-            )}
+            Capture Face
           </Button>
         )}
       </div>
     </div>
   );
-}
+} 

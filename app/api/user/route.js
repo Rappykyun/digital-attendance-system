@@ -28,6 +28,7 @@ export async function GET(req) {
         name: user.name,
         email: user.email,
         department: user.department,
+        section: user.section,
         faceData: user.faceData,
         lastAttendance: user.lastAttendance,
       },

@@ -3,30 +3,21 @@ import { NextResponse } from "next/server";
 
 export default withAuth(
   function middleware(req) {
-    const token = req.nextauth.token;
-
-    if (!token) {
+    const isAdmin = req.nextauth.token?.role === "admin";
+    
+    if (!isAdmin) {
       return NextResponse.redirect(new URL("/", req.url));
     }
 
-    const isAdminRoute = req.nextUrl.pathname.startsWith("/admin");
-    const isDashboardRoute = req.nextUrl.pathname.startsWith("/dashboard");
-
-    if (isAdminRoute && token.role !== "admin") {
-      return NextResponse.redirect(new URL("/dashboard", req.url));
-    }
-
-    if (isDashboardRoute && token.role !== "student") {
-      return NextResponse.redirect(new URL("/admin", req.url));
-    }
+    return NextResponse.next();
   },
   {
     callbacks: {
-      authorized: ({ token }) => !!token,
+      authorized: ({ token }) => token?.role === "admin",
     },
   }
 );
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/admin/:path*"],
+  matcher: ["/admin/:path*"],
 };

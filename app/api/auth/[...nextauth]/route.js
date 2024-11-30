@@ -1,82 +1,70 @@
 import NextAuth from "next-auth";
-import GoogleProvider from "next-auth/providers/google";
-import { User } from "@/lib/database/models/User";
-import clientPromise from "@/lib/database/connection";
-import { MongoDBAdapter } from "@auth/mongodb-adapter";
+import CredentialsProvider from "next-auth/providers/credentials";
+import { Admin } from "@/lib/database/models/Admin";
+import { connectToDatabase } from "@/lib/database/connection";
 
-import mongoose from "mongoose";
-
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
-const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
-
-const authOptions = {
-  adapter: MongoDBAdapter(clientPromise),
+export const authOptions = {
   providers: [
-    GoogleProvider({
-      clientId: GOOGLE_CLIENT_ID,
-      clientSecret: GOOGLE_CLIENT_SECRET,
-      allowDangerousEmailAccountLinking: true,
-    }),
+    CredentialsProvider({
+      name: "Credentials",
+      credentials: {
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" }
+      },
+      async authorize(credentials) {
+        try {
+          await connectToDatabase();
+          
+          const admin = await Admin.findOne({ email: credentials.email });
+          if (!admin) {
+            return null;
+          }
+
+          const isValid = await admin.comparePassword(credentials.password);
+          if (!isValid) {
+            return null;
+          }
+
+          return {
+            id: admin._id,
+            email: admin.email,
+            name: admin.name,
+            role: "admin"
+          };
+        } catch (error) {
+          console.error("Auth error:", error);
+          return null;
+        }
+      }
+    })
   ],
+  session: {
+    strategy: "jwt",
+    maxAge: 24 * 60 * 60, // 24 hours
+  },
   callbacks: {
-    async signIn({ user, account, profile }) {
-      if (!profile?.email_verified) {
-        console.log("Email not verified");
-        return false;
-      }
-
-      try {
-        if (mongoose.connection.readyState !== 1) {
-          await mongoose.connect(process.env.MONGODB_URI);
-        }
-
-        const isStudent = profile.email.endsWith("@sksu.edu.ph");
-
-        let dbUser = await User.findOne({ email: profile.email });
-
-        if (!dbUser) {
-          dbUser = await User.create({
-            email: profile.email,
-            name: profile.name,
-            image: profile.picture,
-            role: isStudent ? "student" : "admin",
-            registeredAt: new Date(),
-          });
-        }
-
-        user.role = dbUser.role;
-        user.id = dbUser._id.toString();
-
-        return true;
-      } catch (error) {
-        console.error("Error during sign in:", error);
-        return false;
-      }
-    },
-    async jwt({ token, user, account }) {
-      if (account && user) {
-        token.role = user.role;
-        token.id = user.id;
+    async jwt({ token, user }) {
+      if (user) {
+        token.role = "admin";
+        token.userId = user.id;
       }
       return token;
     },
     async session({ session, token }) {
       if (session?.user) {
         session.user.role = token.role;
-        session.user.id = token.id;
+        session.user.id = token.userId;
       }
       return session;
     },
-  },
-  session: {
-    strategy: "jwt",
-  },
-  pages: {
-    signIn: "/",
-    error: "/",
-    signOut: "/",
-  },
+    async redirect({ url, baseUrl }) {
+      if (url.includes("/admin")) {
+        return baseUrl + "/admin";
+      }
+      return baseUrl;
+    }
+  }
 };
 
 const handler = NextAuth(authOptions);
-export { handler as GET, handler as POST, authOptions };
+export { handler as GET, handler as POST };

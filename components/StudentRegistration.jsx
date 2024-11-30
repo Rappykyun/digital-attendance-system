@@ -1,8 +1,7 @@
-import { useSession } from "next-auth/react";
-import { useState, useRef, useEffect } from "react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+"use client";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -10,202 +9,232 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Camera, X } from "lucide-react";
-import * as faceapi from "face-api.js";
-import WebcamCapture from "./WebcamCapture";
+import { useToast } from "@/hooks/use-toast";
+import FaceCapture from "./FaceCapture";
+
+const departments = [
+  "Computer Science",
+  "Information Technology",
+  "Information Systems",
+];
 
 export default function StudentRegistration() {
-  const { data: session } = useSession();
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
+    name: "",
     email: "",
     department: "",
+    section: "",
   });
-  const [faceDescriptors, setFaceDescriptors] = useState([]);
-  const [isCapturing, setIsCapturing] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [cameraError, setCameraError] = useState("");
-
-  useEffect(() => {
-    loadModels();
-  }, []);
-
-  const loadModels = async () => {
-    try {
-      setIsLoading(true);
-      const MODEL_URL = "https://raw.githubusercontent.com/Rappykyun/face-api.js/master/weights";
-      await Promise.all([
-        faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
-        faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
-        faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
-      ]);
-      console.log("Face detection models loaded successfully");
-    } catch (error) {
-      console.error("Error loading models:", error);
-      setCameraError("Failed to load face detection models");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleCameraToggle = (shouldCapture) => {
-    setIsCapturing(shouldCapture);
-    if (!shouldCapture) {
-      setCameraError("");
-    }
-  };
-
-  const handleCapture = async () => {
-    try {
-      const videoElement = document.querySelector('video');
-      if (!videoElement) return;
-
-      const detection = await faceapi
-        .detectSingleFace(videoElement)
-        .withFaceLandmarks()
-        .withFaceDescriptor();
-
-      if (detection) {
-        setFaceDescriptors((prev) => [...prev, detection.descriptor]);
-      } else {
-        setCameraError("No face detected. Please try again.");
-      }
-    } catch (error) {
-      console.error("Error capturing face:", error);
-      setCameraError("Failed to capture face. Please try again.");
-    }
-  };
+  const [faceData, setFaceData] = useState([]);
+  const [step, setStep] = useState(1);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (step === 1) {
+      if (!formData.name || !formData.email || !formData.department) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Please fill in all required fields",
+        });
+        return;
+      }
+      if (!formData.email.endsWith("@sksu.edu.ph")) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Please use your institutional email (@sksu.edu.ph)",
+        });
+        return;
+      }
+      setStep(2);
+      return;
+    }
+
+    if (faceData.length < 3) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please capture at least 3 face samples",
+      });
+      return;
+    }
+
     setIsLoading(true);
 
     try {
       const response = await fetch("/api/register-face", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           ...formData,
-          faceData: faceDescriptors,
+          faceData,
         }),
       });
 
       const data = await response.json();
+
       if (data.success) {
-        alert("Student registered successfully!");
-        resetForm();
+        toast({
+          title: "Success",
+          description: "Student registered successfully",
+        });
+        // Reset form
+        setFormData({
+          name: "",
+          email: "",
+          department: "",
+          section: "",
+        });
+        setFaceData([]);
+        setStep(1);
       } else {
-        setCameraError(data.message || "Registration failed");
+        throw new Error(data.message);
       }
     } catch (error) {
-      console.error("Registration error:", error);
-      setCameraError("Registration failed. Please try again.");
+      console.error("Error registering student:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to register student",
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const resetForm = () => {
-    setFormData({
-      email: "",
-      department: "",
+  const handleFaceCapture = (descriptor) => {
+    setFaceData((prev) => [...prev, descriptor]);
+    toast({
+      title: "Success",
+      description: `Face sample ${faceData.length + 1} captured`,
     });
-    setFaceDescriptors([]);
-    handleCameraToggle(false);
-    setCameraError("");
   };
 
   return (
-    <Card className="w-full max-w-2xl mx-auto">
-      <CardHeader>
-        <CardTitle>Register Student Face Data</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label>Email</label>
+    <div className="space-y-6 max-w-2xl mx-auto">
+      <div>
+        <h2 className="text-2xl font-bold tracking-tight">Register Student</h2>
+        <p className="text-muted-foreground">
+          Register a new student for face recognition attendance
+        </p>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {step === 1 ? (
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium" htmlFor="name">
+                Student Name
+              </label>
               <Input
-                name="email"
-                type="email"
-                value={formData.email}
-                onChange={(e) =>
-                  setFormData({ ...formData, email: e.target.value })
-                }
+                id="name"
                 required
+                value={formData.name}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, name: e.target.value }))
+                }
+                placeholder="Enter student's full name"
               />
             </div>
 
-            <div className="space-y-2">
-              <label>Department (Optional)</label>
+            <div>
+              <label className="text-sm font-medium" htmlFor="email">
+                Institutional Email
+              </label>
+              <Input
+                id="email"
+                type="email"
+                required
+                value={formData.email}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, email: e.target.value }))
+                }
+                placeholder="student@sksu.edu.ph"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium">Department</label>
               <Select
+                required
                 value={formData.department}
                 onValueChange={(value) =>
-                  setFormData({ ...formData, department: value })
+                  setFormData((prev) => ({ ...prev, department: value }))
                 }
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select department" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Computer Science">Computer Science</SelectItem>
-                  <SelectItem value="Information Technology">Information Technology</SelectItem>
-                  <SelectItem value="Information Systems">Information Systems</SelectItem>
+                  {departments.map((dept) => (
+                    <SelectItem key={dept} value={dept}>
+                      {dept}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
-          </div>
 
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-semibold">Face Registration</h3>
-              <Button
-                type="button"
-                variant={isCapturing ? "destructive" : "default"}
-                onClick={() => handleCameraToggle(!isCapturing)}
-                disabled={isLoading}
-              >
-                {isCapturing ? "Stop Camera" : "Start Camera"}
-              </Button>
-            </div>
-
-            {cameraError && (
-              <div className="text-red-500 text-sm">{cameraError}</div>
-            )}
-
-            {isCapturing && (
-              <WebcamCapture
-                isCapturing={isCapturing}
-                onCapture={handleCapture}
-                onToggleCapture={handleCameraToggle}
+            <div>
+              <label className="text-sm font-medium" htmlFor="section">
+                Section
+              </label>
+              <Input
+                id="section"
+                value={formData.section}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, section: e.target.value }))
+                }
+                placeholder="Enter section (e.g., A, B, C)"
               />
-            )}
-
-            <div className="flex justify-between items-center text-sm">
-              <span className="text-gray-500">
-                Captured faces: {faceDescriptors.length} / 3 required
-              </span>
-              {faceDescriptors.length > 0 && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => setFaceDescriptors([])}
-                  className="text-red-500 hover:text-red-700"
-                >
-                  Clear captures
-                </Button>
-              )}
             </div>
           </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="rounded-lg border bg-card p-6">
+              <h3 className="text-lg font-semibold mb-2">Face Registration</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Please capture at least 3 face samples. Make sure the students
+                face is well-lit and centered.
+              </p>
+              <FaceCapture onCapture={handleFaceCapture} />
+              <div className="mt-4">
+                <p className="text-sm">
+                  Samples captured: {faceData.length} / 3
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
-          <Button
-            type="submit"
-            className="w-full"
-            disabled={isLoading || faceDescriptors.length < 3}
-          >
-            {isLoading ? "Registering..." : "Register Student"}
+        <div className="flex gap-4">
+          {step === 2 && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setStep(1)}
+              disabled={isLoading}
+            >
+              Back
+            </Button>
+          )}
+          <Button type="submit" className="flex-1" disabled={isLoading}>
+            {isLoading ? (
+              <>
+                <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-current mr-2" />
+                {step === 1 ? "Next" : "Registering..."}
+              </>
+            ) : (
+              step === 1 ? "Next" : "Register Student"
+            )}
           </Button>
-        </form>
-      </CardContent>
-    </Card>
+        </div>
+      </form>
+    </div>
   );
 }
