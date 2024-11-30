@@ -1,12 +1,9 @@
 "use client";
 import { useState } from "react";
-import {
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 
 export default function CreateActivityForm({ onSuccess }) {
@@ -20,38 +17,6 @@ export default function CreateActivityForm({ onSuccess }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Validate form data
-    if (!formData.name.trim()) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Activity name is required",
-      });
-      return;
-    }
-
-    if (!formData.startTime || !formData.endTime) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Start time and end time are required",
-      });
-      return;
-    }
-
-    const startTime = new Date(formData.startTime);
-    const endTime = new Date(formData.endTime);
-
-    if (endTime <= startTime) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "End time must be after start time",
-      });
-      return;
-    }
-
     setIsLoading(true);
 
     try {
@@ -60,14 +25,14 @@ export default function CreateActivityForm({ onSuccess }) {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          name: formData.name.trim(),
-          startTime: formData.startTime,
-          endTime: formData.endTime,
-        }),
+        body: JSON.stringify(formData),
       });
 
       const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to create activity");
+      }
 
       if (data.success) {
         toast({
@@ -79,7 +44,6 @@ export default function CreateActivityForm({ onSuccess }) {
         throw new Error(data.message || "Failed to create activity");
       }
     } catch (error) {
-      console.error("Error creating activity:", error);
       toast({
         variant: "destructive",
         title: "Error",
@@ -90,68 +54,50 @@ export default function CreateActivityForm({ onSuccess }) {
     }
   };
 
-  const handleChange = (field) => (e) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: e.target.value,
-    }));
-  };
-
   return (
     <DialogContent>
       <DialogHeader>
         <DialogTitle>Create New Activity</DialogTitle>
       </DialogHeader>
-
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="space-y-4">
-          <div>
-            <label className="text-sm font-medium" htmlFor="name">
-              Activity Name
-            </label>
-            <Input
-              id="name"
-              required
-              value={formData.name}
-              onChange={handleChange("name")}
-              placeholder="Enter activity name"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-sm font-medium" htmlFor="startTime">
-                Start Time
-              </label>
-              <Input
-                id="startTime"
-                type="datetime-local"
-                required
-                value={formData.startTime}
-                onChange={handleChange("startTime")}
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium" htmlFor="endTime">
-                End Time
-              </label>
-              <Input
-                id="endTime"
-                type="datetime-local"
-                required
-                value={formData.endTime}
-                onChange={handleChange("endTime")}
-              />
-            </div>
-          </div>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="name">Activity Name</Label>
+          <Input
+            id="name"
+            required
+            value={formData.name}
+            onChange={(e) =>
+              setFormData({ ...formData, name: e.target.value })
+            }
+          />
         </div>
-
+        <div className="space-y-2">
+          <Label htmlFor="startTime">Start Time</Label>
+          <Input
+            id="startTime"
+            type="datetime-local"
+            required
+            value={formData.startTime}
+            onChange={(e) =>
+              setFormData({ ...formData, startTime: e.target.value })
+            }
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="endTime">End Time</Label>
+          <Input
+            id="endTime"
+            type="datetime-local"
+            required
+            value={formData.endTime}
+            onChange={(e) =>
+              setFormData({ ...formData, endTime: e.target.value })
+            }
+          />
+        </div>
         <Button type="submit" className="w-full" disabled={isLoading}>
           {isLoading ? (
-            <>
-              <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-current mr-2" />
-              Creating...
-            </>
+            <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-current" />
           ) : (
             "Create Activity"
           )}

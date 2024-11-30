@@ -1,6 +1,6 @@
 "use client";
 import { useSession } from "next-auth/react";
-import { redirect } from "next/navigation";
+import { redirect, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -50,6 +50,7 @@ export default function AdminLayout({ children }) {
   const { data: session, status } = useSession();
   const [isMounted, setIsMounted] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
 
   useEffect(() => {
     setIsMounted(true);
@@ -63,6 +64,11 @@ export default function AdminLayout({ children }) {
       redirect("/");
     }
   }, [session, status]);
+
+  const handleSignOut = async () => {
+    await signOut({ redirect: false });
+    router.push("/");
+  };
 
   if (!isMounted || status === "loading") {
     return (
@@ -103,7 +109,7 @@ export default function AdminLayout({ children }) {
           <Button
             variant="ghost"
             className="w-full justify-start gap-3"
-            onClick={() => signOut()}
+            onClick={handleSignOut}
           >
             <LogOut className="h-4 w-4" />
             Sign Out
@@ -151,7 +157,7 @@ export default function AdminLayout({ children }) {
             <Button
               variant="ghost"
               className="w-full justify-start gap-3"
-              onClick={() => signOut()}
+              onClick={handleSignOut}
             >
               <LogOut className="h-4 w-4" />
               Sign Out
@@ -161,9 +167,7 @@ export default function AdminLayout({ children }) {
       </Sheet>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto">
-        <div className="container mx-auto p-6">{children}</div>
-      </main>
+      <main className="flex-1 p-6">{children}</main>
     </div>
   );
 }

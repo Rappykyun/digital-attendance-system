@@ -9,10 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Dialog,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Plus } from "lucide-react";
 import CreateActivityForm from "@/components/CreateActivityForm";
@@ -21,6 +18,7 @@ export default function AttendancePage() {
   const { toast } = useToast();
   const [activities, setActivities] = useState([]);
   const [showNewActivityForm, setShowNewActivityForm] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     fetchActivities();
@@ -29,20 +27,24 @@ export default function AttendancePage() {
   const fetchActivities = async () => {
     try {
       const response = await fetch("/api/attendance/activities");
-      const data = await response.json();
+      if (!response.ok) {
+        throw new Error("Failed to fetch activities");
+      }
 
+      const data = await response.json();
       if (data.success) {
         setActivities(data.activities);
       } else {
-        throw new Error(data.message);
+        throw new Error(data.message || "Failed to fetch activities");
       }
     } catch (error) {
-      console.error("Error fetching activities:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to fetch activities",
+        description: error.message || "Failed to fetch activities",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -59,14 +61,20 @@ export default function AttendancePage() {
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-[200px]">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-r-transparent" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Attendance</h2>
-          <p className="text-muted-foreground">
-            Manage attendance activities
-          </p>
+          <p className="text-muted-foreground">Manage attendance activities</p>
         </div>
 
         <Dialog open={showNewActivityForm} onOpenChange={setShowNewActivityForm}>

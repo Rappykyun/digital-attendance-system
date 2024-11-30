@@ -56,13 +56,11 @@ export const authOptions = {
         session.user.id = token.userId;
       }
       return session;
-    },
-    async redirect({ url, baseUrl }) {
-      if (url.includes("/admin")) {
-        return baseUrl + "/admin";
-      }
-      return baseUrl;
     }
+  },
+  pages: {
+    signIn: "/",
+    signOut: "/",
   }
 };
 
