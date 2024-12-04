@@ -51,29 +51,10 @@ export default function MarkAttendancePage({ params }) {
     }
   };
 
-  const handleAttendanceSuccess = async () => {
-    try {
-      const response = await fetch(`/api/student/attendance/${params.activityId}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          comments,
-          verificationMethod: "face",
-        }),
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        setSuccess(true);
-      } else {
-        setError(data.message || "Failed to record attendance");
-      }
-    } catch (error) {
-      console.error("Error recording attendance:", error);
-      setError("Failed to record attendance");
-    }
+  const handleAttendanceSuccess = async (attendeeData) => {
+    // Don't set success immediately - let the dialog stay open
+    // The success state will be set when user closes the dialog
+    setSuccess(true);
   };
 
   if (status === "loading" || loading) {

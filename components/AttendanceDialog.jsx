@@ -33,7 +33,7 @@ export default function AttendanceDialog({ activity, open, onOpenChange }) {
   const [departments, setDepartments] = useState([]);
   const [filter, setFilter] = useState({
     search: "",
-    department: "",
+    department: "all",
     sortBy: "name",
     sortOrder: "asc",
   });
@@ -48,6 +48,7 @@ export default function AttendanceDialog({ activity, open, onOpenChange }) {
     try {
       const params = new URLSearchParams({
         ...filter,
+        department: filter.department === "all" ? "" : filter.department,
       });
       const response = await fetch(
         `/api/attendance/attendees/${activity._id}?${params}`
@@ -86,16 +87,15 @@ export default function AttendanceDialog({ activity, open, onOpenChange }) {
       
       // Add table
       const tableData = attendees.map((attendee) => [
-        attendee.user.name,
-        attendee.user.department || "-",
-        attendee.user.section || "-",
+        attendee.name,
+        attendee.department || "-",
+        attendee.section || "-",
         new Date(attendee.timeIn).toLocaleString(),
-        attendee.verificationMethod,
       ]);
 
       doc.autoTable({
         startY: filter.department ? 45 : 39,
-        head: [["Name", "Department", "Section", "Time In", "Verification"]],
+        head: [["Name", "Department", "Section", "Time In"]],
         body: tableData,
         theme: "grid",
         styles: { fontSize: 10 },
@@ -164,7 +164,7 @@ export default function AttendanceDialog({ activity, open, onOpenChange }) {
                 <SelectValue placeholder="All Departments" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Departments</SelectItem>
+                <SelectItem value="all">All Departments</SelectItem>
                 {departments.map((dept) => (
                   <SelectItem key={dept} value={dept}>
                     {dept}
@@ -212,37 +212,25 @@ export default function AttendanceDialog({ activity, open, onOpenChange }) {
                   <TableHead>Department</TableHead>
                   <TableHead>Section</TableHead>
                   <TableHead>Time In</TableHead>
-                  <TableHead>Verification</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {attendees.map((attendee) => (
                   <TableRow key={attendee._id}>
                     <TableCell className="font-medium">
-                      {attendee.user.name}
+                      {attendee.name}
                     </TableCell>
-                    <TableCell>{attendee.user.department || "-"}</TableCell>
-                    <TableCell>{attendee.user.section || "-"}</TableCell>
+                    <TableCell>{attendee.department || "-"}</TableCell>
+                    <TableCell>{attendee.section || "-"}</TableCell>
                     <TableCell>
                       {new Date(attendee.timeIn).toLocaleString()}
-                    </TableCell>
-                    <TableCell>
-                      <span
-                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                          attendee.verificationMethod === "face"
-                            ? "bg-blue-100 text-blue-700"
-                            : "bg-purple-100 text-purple-700"
-                        }`}
-                      >
-                        {attendee.verificationMethod}
-                      </span>
                     </TableCell>
                   </TableRow>
                 ))}
                 {attendees.length === 0 && (
                   <TableRow>
                     <TableCell
-                      colSpan={5}
+                      colSpan={4}
                       className="h-24 text-center text-muted-foreground"
                     >
                       No attendees found

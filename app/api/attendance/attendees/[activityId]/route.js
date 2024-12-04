@@ -19,11 +19,7 @@ export async function GET(req, { params }) {
     const sortOrder = searchParams.get("sortOrder") || "asc";
     const department = searchParams.get("department");
 
-    const activity = await AttendanceActivity.findById(params.activityId)
-      .populate({
-        path: "attendees.user",
-        select: "name email department section",
-      });
+    const activity = await AttendanceActivity.findById(params.activityId);
 
     if (!activity) {
       return NextResponse.json({
@@ -32,27 +28,23 @@ export async function GET(req, { params }) {
       });
     }
 
-    let attendees = activity.attendees.map(attendee => ({
-      ...attendee.toObject(),
-      user: attendee.user || { name: "Unknown", email: "", department: "", section: "" }
-    }));
+    let attendees = activity.attendees;
 
     // Filter by search term
     if (search) {
       const searchLower = search.toLowerCase();
       attendees = attendees.filter(
         attendee =>
-          attendee.user.name.toLowerCase().includes(searchLower) ||
-          attendee.user.email.toLowerCase().includes(searchLower) ||
-          attendee.user.department?.toLowerCase().includes(searchLower) ||
-          attendee.user.section?.toLowerCase().includes(searchLower)
+          attendee.name.toLowerCase().includes(searchLower) ||
+          attendee.department?.toLowerCase().includes(searchLower) ||
+          attendee.section?.toLowerCase().includes(searchLower)
       );
     }
 
     // Filter by department
     if (department) {
       attendees = attendees.filter(
-        attendee => attendee.user.department === department
+        attendee => attendee.department === department
       );
     }
 
@@ -61,10 +53,10 @@ export async function GET(req, { params }) {
       let compareValue;
       switch (sortBy) {
         case "name":
-          compareValue = a.user.name.localeCompare(b.user.name);
+          compareValue = a.name.localeCompare(b.name);
           break;
         case "department":
-          compareValue = (a.user.department || "").localeCompare(b.user.department || "");
+          compareValue = (a.department || "").localeCompare(b.department || "");
           break;
         case "timeIn":
           compareValue = new Date(a.timeIn) - new Date(b.timeIn);
@@ -76,7 +68,7 @@ export async function GET(req, { params }) {
     });
 
     // Get unique departments for filtering
-    const departments = [...new Set(attendees.map(a => a.user.department).filter(Boolean))];
+    const departments = [...new Set(attendees.map(a => a.department).filter(Boolean))];
 
     return NextResponse.json({
       success: true,

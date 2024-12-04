@@ -158,9 +158,6 @@ export default function FaceRecognition({ activityId, onSuccess }) {
       setIsProcessing(true);
       console.log('Starting face verification...');
 
-      // Wait for video to be ready
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
       // Detect face
       console.log('Detecting face...');
       const detection = await faceapi
@@ -169,7 +166,7 @@ export default function FaceRecognition({ activityId, onSuccess }) {
         .withFaceDescriptor();
 
       if (!detection) {
-        throw new Error("No face detected. Please look directly at the camera.");
+        throw new Error("FACE_NOT_DETECTED");
       }
 
       console.log('Face detected, matching with database...');
@@ -222,20 +219,38 @@ export default function FaceRecognition({ activityId, onSuccess }) {
         description: `Welcome, ${bestMatch.name}!`,
       });
 
-      setAttendeeData(data.attendee);
+      // Prepare attendee data for dialog
+      const attendeeData = {
+        name: bestMatch.name,
+        email: bestMatch.email,
+        department: bestMatch.department,
+        section: bestMatch.section,
+        timeIn: new Date().toISOString(),
+        verificationMethod: "face"
+      };
+
+      setAttendeeData(attendeeData);
       setShowSuccessDialog(true);
       stopCamera();
 
-      if (onSuccess) {
-        onSuccess(data.attendee);
+    } catch (error) {
+      // Provide specific tips based on error type
+      let errorMessage = "Face verification failed";
+      let description = "";
+
+      if (error.message === "FACE_NOT_DETECTED") {
+        errorMessage = "No face detected";
+        description = "Tips:\n• Move closer to the camera\n• Ensure proper lighting\n• Look directly at the camera\n• Remove face coverings";
+      } else if (error.message.includes("confidence")) {
+        description = "Tips:\n• Ensure your face is well-lit\n• Remove glasses if possible\n• Try a different angle\n• Make sure your face data is up to date";
+      } else {
+        description = "Tips:\n• Check your camera permissions\n• Ensure stable internet connection\n• Try refreshing the page";
       }
 
-    } catch (error) {
-      console.error('Verification error:', error);
       toast({
         variant: "destructive",
-        title: "Error",
-        description: error.message || "Face verification failed",
+        title: errorMessage,
+        description: description,
       });
     } finally {
       setIsProcessing(false);
@@ -302,8 +317,8 @@ export default function FaceRecognition({ activityId, onSuccess }) {
         open={showSuccessDialog}
         onOpenChange={(open) => {
           setShowSuccessDialog(open);
-          if (!open) {
-            onSuccess?.(attendeeData);
+          if (!open && onSuccess) {
+            onSuccess(attendeeData);
           }
         }}
       />

@@ -39,11 +39,6 @@ const navItems = [
     href: "/admin/attendance",
     icon: CalendarDays,
   },
-  {
-    title: "Settings",
-    href: "/admin/settings",
-    icon: Settings,
-  },
 ];
 
 export default function AdminLayout({ children }) {
@@ -104,17 +99,14 @@ export default function AdminLayout({ children }) {
               </Link>
             );
           })}
-        </nav>
-        <div className="p-4 border-t">
-          <Button
-            variant="ghost"
-            className="w-full justify-start gap-3"
+          <button
             onClick={handleSignOut}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-muted text-muted-foreground hover:text-foreground"
           >
             <LogOut className="h-4 w-4" />
             Sign Out
-          </Button>
-        </div>
+          </button>
+        </nav>
       </aside>
 
       {/* Mobile Navigation */}
@@ -152,17 +144,14 @@ export default function AdminLayout({ children }) {
                 </Link>
               );
             })}
-          </nav>
-          <div className="p-4 border-t">
-            <Button
-              variant="ghost"
-              className="w-full justify-start gap-3"
+            <button
               onClick={handleSignOut}
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-muted text-muted-foreground hover:text-foreground"
             >
               <LogOut className="h-4 w-4" />
               Sign Out
-            </Button>
-          </div>
+            </button>
+          </nav>
         </SheetContent>
       </Sheet>
 

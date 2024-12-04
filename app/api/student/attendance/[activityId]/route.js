@@ -7,7 +7,10 @@ export async function POST(req, { params }) {
   try {
     await connectToDatabase();
 
-    const activity = await AttendanceActivity.findById(params.activityId);
+    // Get activityId from params after awaiting
+    const { activityId } = await params;
+
+    const activity = await AttendanceActivity.findById(activityId);
     if (!activity) {
       return NextResponse.json({
         success: false,
