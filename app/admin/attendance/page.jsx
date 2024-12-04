@@ -11,13 +11,16 @@ import {
 } from "@/components/ui/table";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Plus } from "lucide-react";
+import { Plus, Eye } from "lucide-react";
 import CreateActivityForm from "@/components/CreateActivityForm";
+import AttendanceDialog from "@/components/AttendanceDialog";
 
 export default function AttendancePage() {
   const { toast } = useToast();
   const [activities, setActivities] = useState([]);
   const [showNewActivityForm, setShowNewActivityForm] = useState(false);
+  const [selectedActivity, setSelectedActivity] = useState(null);
+  const [showAttendanceDialog, setShowAttendanceDialog] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -101,6 +104,7 @@ export default function AttendancePage() {
               <TableHead>Date & Time</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Attendees</TableHead>
+              <TableHead className="w-[100px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -121,11 +125,23 @@ export default function AttendancePage() {
                   </span>
                 </TableCell>
                 <TableCell>{activity.attendeeCount || 0}</TableCell>
+                <TableCell>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      setSelectedActivity(activity);
+                      setShowAttendanceDialog(true);
+                    }}
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                </TableCell>
               </TableRow>
             ))}
             {activities.length === 0 && (
               <TableRow>
-                <TableCell colSpan={4} className="text-center py-4">
+                <TableCell colSpan={5} className="text-center py-4">
                   No activities found
                 </TableCell>
               </TableRow>
@@ -133,6 +149,12 @@ export default function AttendancePage() {
           </TableBody>
         </Table>
       </div>
+
+      <AttendanceDialog
+        activity={selectedActivity}
+        open={showAttendanceDialog}
+        onOpenChange={setShowAttendanceDialog}
+      />
     </div>
   );
 } 

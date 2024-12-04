@@ -2,23 +2,27 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "../../../auth/[...nextauth]/route";
 import { AttendanceActivity } from "@/lib/database/models/AttendanceActivity";
+import { connectToDatabase } from "@/lib/database/connection";
 
 export async function GET(req, { params }) {
   try {
+    await connectToDatabase();
+
     const session = await getServerSession(authOptions);
-    if (session?.user?.email !== process.env.ADMIN_EMAIL) {
+    if (!session?.user?.role === "admin") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { searchParams } = new URL(req.url);
-    const search = searchParams.get("search");
+    const search = searchParams.get("search") || "";
     const sortBy = searchParams.get("sortBy") || "name";
     const sortOrder = searchParams.get("sortOrder") || "asc";
+    const department = searchParams.get("department");
 
     const activity = await AttendanceActivity.findById(params.activityId)
       .populate({
         path: "attendees.user",
-        select: "name email section department",
+        select: "name email department section",
       });
 
     if (!activity) {
@@ -28,37 +32,56 @@ export async function GET(req, { params }) {
       });
     }
 
-    let attendees = activity.attendees || [];
+    let attendees = activity.attendees.map(attendee => ({
+      ...attendee.toObject(),
+      user: attendee.user || { name: "Unknown", email: "", department: "", section: "" }
+    }));
 
-    // Apply search filter
+    // Filter by search term
     if (search) {
       const searchLower = search.toLowerCase();
       attendees = attendees.filter(
-        (attendee) =>
+        attendee =>
           attendee.user.name.toLowerCase().includes(searchLower) ||
           attendee.user.email.toLowerCase().includes(searchLower) ||
-          (attendee.user.section &&
-            attendee.user.section.toLowerCase().includes(searchLower))
+          attendee.user.department?.toLowerCase().includes(searchLower) ||
+          attendee.user.section?.toLowerCase().includes(searchLower)
       );
     }
 
-    // Apply sorting
+    // Filter by department
+    if (department) {
+      attendees = attendees.filter(
+        attendee => attendee.user.department === department
+      );
+    }
+
+    // Sort attendees
     attendees.sort((a, b) => {
-      if (sortBy === "name") {
-        return sortOrder === "asc"
-          ? a.user.name.localeCompare(b.user.name)
-          : b.user.name.localeCompare(a.user.name);
-      } else if (sortBy === "timeIn") {
-        return sortOrder === "asc"
-          ? new Date(a.timeIn) - new Date(b.timeIn)
-          : new Date(b.timeIn) - new Date(a.timeIn);
+      let compareValue;
+      switch (sortBy) {
+        case "name":
+          compareValue = a.user.name.localeCompare(b.user.name);
+          break;
+        case "department":
+          compareValue = (a.user.department || "").localeCompare(b.user.department || "");
+          break;
+        case "timeIn":
+          compareValue = new Date(a.timeIn) - new Date(b.timeIn);
+          break;
+        default:
+          compareValue = 0;
       }
-      return 0;
+      return sortOrder === "asc" ? compareValue : -compareValue;
     });
+
+    // Get unique departments for filtering
+    const departments = [...new Set(attendees.map(a => a.user.department).filter(Boolean))];
 
     return NextResponse.json({
       success: true,
       attendees,
+      departments,
     });
   } catch (error) {
     console.error("Error fetching attendees:", error);

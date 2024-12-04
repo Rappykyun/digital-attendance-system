@@ -25,6 +25,8 @@
     "date-fns": "^4.1.0",
     "env": "^0.0.2",
     "face-api.js": "^0.22.2",
+    "jspdf": "^2.5.2",
+    "jspdf-autotable": "^3.8.4",
     "lucide-react": "^0.460.0",
     "mongodb": "^6.10.0",
     "mongoose": "^8.8.1",
