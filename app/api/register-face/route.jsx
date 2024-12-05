@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
 import { User } from "@/lib/database/models/User";
-import { getServerSession } from "next-auth";
-import { authOptions } from "../auth/[...nextauth]/route";
 import mongoose from "mongoose";
 import { connectToDatabase } from "@/lib/database/connection";
 
@@ -9,11 +7,6 @@ export async function POST(req) {
   try {
     // Ensure database connection
     await connectToDatabase();
-
-    const session = await getServerSession(authOptions);
-    if (session?.user?.email !== process.env.ADMIN_EMAIL) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
 
     const { name, email, department, section, faceData } = await req.json();
 

@@ -40,7 +40,7 @@ export async function POST(req, { params }) {
 
     // Check if user already marked attendance
     const existingAttendance = activity.attendees.find(
-      a => a.userId?.toString() === userId || a.email === user.email
+      a => a.userId?.toString() === user._id.toString() || a.email === user.email
     );
 
     if (existingAttendance) {

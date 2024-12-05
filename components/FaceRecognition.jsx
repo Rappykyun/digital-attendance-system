@@ -5,6 +5,7 @@ import { Camera, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import * as faceapi from "face-api.js";
 import AttendanceSuccessDialog from "./AttendanceSuccessDialog";
+import AttendanceAlreadyMarkedDialog from "./AttendanceAlreadyMarkedDialog";
 
 export default function FaceRecognition({ activityId, onSuccess }) {
   const { toast } = useToast();
@@ -15,6 +16,7 @@ export default function FaceRecognition({ activityId, onSuccess }) {
   const [isModelLoading, setIsModelLoading] = useState(true);
   const [attendeeData, setAttendeeData] = useState(null);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
   const [faceDescriptors, setFaceDescriptors] = useState([]);
 
   useEffect(() => {
@@ -197,7 +199,24 @@ export default function FaceRecognition({ activityId, onSuccess }) {
         throw new Error(`Face not recognized (confidence: ${((1 - smallestDistance) * 100).toFixed(1)}%). Please try again.`);
       }
 
-      // Mark attendance
+      // First check if user has already marked attendance
+      const checkResponse = await fetch(`/api/student/attendance/${activityId}/check`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: bestMatch.id
+        })
+      });
+
+      const checkData = await checkResponse.json();
+      
+      if (!checkData.success && checkData.message?.toLowerCase().includes("already marked")) {
+        setShowDuplicateDialog(true);
+        stopCamera();
+        return;
+      }
+
+      // If not already marked, proceed with marking attendance
       const response = await fetch(`/api/student/attendance/${activityId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -259,68 +278,61 @@ export default function FaceRecognition({ activityId, onSuccess }) {
 
   return (
     <div className="space-y-4">
-      <div className="relative rounded-lg overflow-hidden bg-black">
+      <div className="relative aspect-video rounded-lg overflow-hidden bg-muted">
         <video
           ref={videoRef}
           autoPlay
           playsInline
-          className="w-full h-[300px] object-cover"
+          muted
+          className="w-full h-full object-cover"
         />
-        {!isCapturing && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-            {isModelLoading ? (
-              <div className="flex flex-col items-center gap-2">
-                <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-r-transparent" />
-                <p className="text-white">Loading face recognition...</p>
-              </div>
-            ) : (
-              <Button onClick={startCamera} className="gap-2">
-                <Camera className="h-4 w-4" />
-                Start Camera
-              </Button>
-            )}
-          </div>
-        )}
       </div>
 
-      {isCapturing && (
-        <div className="flex justify-center gap-4">
+      <div className="flex justify-center gap-4">
+        {!isCapturing ? (
           <Button
-            variant="outline"
-            onClick={stopCamera}
-            disabled={isProcessing}
+            onClick={startCamera}
+            disabled={isModelLoading}
+            className="w-full sm:w-auto"
           >
-            Stop Camera
+            <Camera className="mr-2 h-4 w-4" />
+            Start Camera
           </Button>
-          <Button
-            onClick={verifyFace}
-            disabled={isProcessing}
-            className="gap-2"
-          >
-            {isProcessing ? (
-              <>
-                <RefreshCw className="h-4 w-4 animate-spin" />
-                Processing...
-              </>
-            ) : (
-              <>
-                <Camera className="h-4 w-4" />
-                Verify Face
-              </>
-            )}
-          </Button>
-        </div>
-      )}
+        ) : (
+          <>
+            <Button
+              onClick={verifyFace}
+              disabled={isProcessing}
+              className="w-full sm:w-auto"
+            >
+              {isProcessing ? (
+                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Camera className="mr-2 h-4 w-4" />
+              )}
+              {isProcessing ? "Processing..." : "Verify Face"}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={stopCamera}
+              disabled={isProcessing}
+              className="w-full sm:w-auto"
+            >
+              Stop Camera
+            </Button>
+          </>
+        )}
+      </div>
 
       <AttendanceSuccessDialog
         attendee={attendeeData}
         open={showSuccessDialog}
-        onOpenChange={(open) => {
-          setShowSuccessDialog(open);
-          if (!open && onSuccess) {
-            onSuccess(attendeeData);
-          }
-        }}
+        onOpenChange={setShowSuccessDialog}
+      />
+
+      <AttendanceAlreadyMarkedDialog
+        open={showDuplicateDialog}
+        onOpenChange={setShowDuplicateDialog}
       />
     </div>
   );
