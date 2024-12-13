@@ -23,31 +23,25 @@ export async function GET(req) {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    // Get today's active activities
+    // Get current time for active activities check
+    const now = new Date();
+
+    // Get today's activities
     const todayActivities = await AttendanceActivity.find({
       startTime: { $gte: today, $lt: tomorrow }
     });
 
+    // Get active activities count
+    const activeActivities = await AttendanceActivity.countDocuments({
+      startTime: { $lte: now },
+      endTime: { $gte: now }
+    });
+
     // Calculate attendance stats
     let presentCount = 0;
-    let lateCount = 0;
-    let absentCount = totalStudents;
 
     for (const activity of todayActivities) {
-      for (const attendee of activity.attendees) {
-        // Count as present
-        presentCount++;
-        absentCount--;
-
-        // Check if late (15 minutes grace period)
-        const attendanceTime = new Date(attendee.timeIn);
-        const activityStart = new Date(activity.startTime);
-        const lateThreshold = new Date(activityStart.getTime() + 15 * 60000); // 15 minutes in milliseconds
-
-        if (attendanceTime > lateThreshold) {
-          lateCount++;
-        }
-      }
+      presentCount += activity.attendees.length;
     }
 
     return NextResponse.json({
@@ -55,8 +49,7 @@ export async function GET(req) {
       stats: {
         totalStudents,
         presentToday: presentCount,
-        lateArrivals: lateCount,
-        absent: absentCount
+        lateArrivals: activeActivities
       }
     });
   } catch (error) {

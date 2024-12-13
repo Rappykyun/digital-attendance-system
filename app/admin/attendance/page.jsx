@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/table";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Eye } from "lucide-react";
+import { Plus, Eye, Trash2 } from "lucide-react";
 import CreateActivityForm from "@/components/CreateActivityForm";
 import AttendanceDialog from "@/components/AttendanceDialog";
 
@@ -61,6 +61,35 @@ export default function AttendancePage() {
         return "bg-gray-100 text-gray-700";
       default:
         return "bg-gray-100 text-gray-700";
+    }
+  };
+
+  const handleDeleteActivity = async (activityId) => {
+    if (!confirm("Are you sure you want to delete this activity? This action cannot be undone.")) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/attendance/activities/${activityId}`, {
+        method: "DELETE",
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        toast({
+          title: "Success",
+          description: "Activity deleted successfully",
+        });
+        fetchActivities();
+      } else {
+        throw new Error(data.message || "Failed to delete activity");
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to delete activity",
+      });
     }
   };
 
@@ -126,16 +155,26 @@ export default function AttendancePage() {
                 </TableCell>
                 <TableCell>{activity.attendeeCount || 0}</TableCell>
                 <TableCell>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => {
-                      setSelectedActivity(activity);
-                      setShowAttendanceDialog(true);
-                    }}
-                  >
-                    <Eye className="h-4 w-4" />
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        setSelectedActivity(activity);
+                        setShowAttendanceDialog(true);
+                      }}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDeleteActivity(activity._id)}
+                      className="text-red-500 hover:text-red-700 hover:bg-red-100"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
