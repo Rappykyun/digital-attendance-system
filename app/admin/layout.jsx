@@ -77,8 +77,12 @@ export default function AdminLayout({ children }) {
     <div className="flex min-h-screen">
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex w-64 flex-col border-r">
-        <div className="p-6">
-          <h1 className="text-2xl font-bold">Admin Panel</h1>
+        <div className="p-6 flex justify-center">
+          <img
+            src="https://sksu.edu.ph/wp-content/uploads/2022/06/sksu_official_seal_web.png"
+            alt="SKSU Logo"
+            className="h-24 w-auto"
+          />
         </div>
         <nav className="flex-1 space-y-1 p-4">
           {navItems.map((item) => {

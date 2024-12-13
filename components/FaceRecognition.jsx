@@ -6,6 +6,10 @@ import { useToast } from "@/hooks/use-toast";
 import * as faceapi from "face-api.js";
 import AttendanceSuccessDialog from "./AttendanceSuccessDialog";
 import AttendanceAlreadyMarkedDialog from "./AttendanceAlreadyMarkedDialog";
+import FaceNotRegisteredDialog from "./FaceNotRegisteredDialog";
+
+// Make face recognition threshold even stricter
+const FACE_MATCH_THRESHOLD = 0.35;
 
 export default function FaceRecognition({ activityId, onSuccess }) {
   const { toast } = useToast();
@@ -17,6 +21,8 @@ export default function FaceRecognition({ activityId, onSuccess }) {
   const [attendeeData, setAttendeeData] = useState(null);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
+  const [showNotRegisteredDialog, setShowNotRegisteredDialog] = useState(false);
+  const [duplicateStudentName, setDuplicateStudentName] = useState("");
   const [faceDescriptors, setFaceDescriptors] = useState([]);
 
   useEffect(() => {
@@ -137,6 +143,46 @@ export default function FaceRecognition({ activityId, onSuccess }) {
     }
   };
 
+  const handleDialogClose = (open) => {
+    if (showSuccessDialog) {
+      setShowSuccessDialog(open);
+      if (!open && onSuccess && attendeeData) {
+        onSuccess(attendeeData);
+      }
+    } else if (showDuplicateDialog) {
+      setShowDuplicateDialog(open);
+      if (!open) {
+        window.location.href = "/";
+      }
+    } else if (showNotRegisteredDialog) {
+      setShowNotRegisteredDialog(open);
+      if (!open) {
+        window.location.href = "/";
+      }
+    }
+  };
+
+  const checkDuplicateAttendance = async (userId) => {
+    try {
+      const response = await fetch(`/api/student/attendance/${activityId}/check`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId })
+      });
+
+      const data = await response.json();
+      return {
+        isDuplicate: !data.success,
+        message: data.message,
+        studentName: data.studentName,
+        timeMarked: data.timeMarked
+      };
+    } catch (error) {
+      console.error("Error checking attendance:", error);
+      throw new Error("Failed to check attendance status");
+    }
+  };
+
   const verifyFace = async () => {
     if (!videoRef.current || !isCapturing) {
       toast({
@@ -179,8 +225,6 @@ export default function FaceRecognition({ activityId, onSuccess }) {
 
       // Compare with each user's face descriptors
       for (const { user, descriptors } of faceDescriptors) {
-        console.log(`Comparing with ${user.name}'s descriptors...`);
-        
         for (const referenceDescriptor of descriptors) {
           const distance = faceapi.euclideanDistance(detection.descriptor, referenceDescriptor);
           console.log(`Distance for ${user.name}:`, distance);
@@ -194,26 +238,24 @@ export default function FaceRecognition({ activityId, onSuccess }) {
 
       console.log('Best match:', bestMatch ? bestMatch.name : 'None', 'Distance:', smallestDistance);
 
-      // Check if match is good enough (0.6 is the threshold)
-      if (!bestMatch || smallestDistance > 0.6) {
-        throw new Error(`Face not recognized (confidence: ${((1 - smallestDistance) * 100).toFixed(1)}%). Please try again.`);
-      }
-
-      // First check if user has already marked attendance
-      const checkResponse = await fetch(`/api/student/attendance/${activityId}/check`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: bestMatch.id
-        })
-      });
-
-      const checkData = await checkResponse.json();
-      
-      if (!checkData.success && checkData.message?.toLowerCase().includes("already marked")) {
-        setShowDuplicateDialog(true);
+      // Check if match is good enough using stricter threshold
+      if (!bestMatch || smallestDistance > FACE_MATCH_THRESHOLD) {
+        setShowNotRegisteredDialog(true);
         stopCamera();
         return;
+      }
+
+      // Check for duplicate attendance first
+      try {
+        const { isDuplicate, studentName, timeMarked } = await checkDuplicateAttendance(bestMatch.id);
+        if (isDuplicate) {
+          setDuplicateStudentName(studentName || bestMatch.name);
+          setShowDuplicateDialog(true);
+          stopCamera();
+          return;
+        }
+      } catch (error) {
+        throw new Error("Failed to verify attendance status");
       }
 
       // If not already marked, proceed with marking attendance
@@ -229,6 +271,13 @@ export default function FaceRecognition({ activityId, onSuccess }) {
       const data = await response.json();
 
       if (!data.success) {
+        // Double check if it's a duplicate attendance error
+        if (data.message?.toLowerCase().includes("already marked")) {
+          setDuplicateStudentName(bestMatch.name);
+          setShowDuplicateDialog(true);
+          stopCamera();
+          return;
+        }
         throw new Error(data.message || "Failed to mark attendance");
       }
 
@@ -327,12 +376,18 @@ export default function FaceRecognition({ activityId, onSuccess }) {
       <AttendanceSuccessDialog
         attendee={attendeeData}
         open={showSuccessDialog}
-        onOpenChange={setShowSuccessDialog}
+        onOpenChange={handleDialogClose}
       />
 
       <AttendanceAlreadyMarkedDialog
         open={showDuplicateDialog}
-        onOpenChange={setShowDuplicateDialog}
+        onOpenChange={handleDialogClose}
+        studentName={duplicateStudentName}
+      />
+
+      <FaceNotRegisteredDialog
+        open={showNotRegisteredDialog}
+        onOpenChange={handleDialogClose}
       />
     </div>
   );

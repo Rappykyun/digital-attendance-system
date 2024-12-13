@@ -9,7 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { AlertCircle, X } from "lucide-react";
 
-export default function AttendanceAlreadyMarkedDialog({ open, onOpenChange, studentName }) {
+export default function FaceNotRegisteredDialog({ open, onOpenChange }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
@@ -20,14 +20,14 @@ export default function AttendanceAlreadyMarkedDialog({ open, onOpenChange, stud
 
         <DialogHeader>
           <div className="flex flex-col items-center space-y-2">
-            <div className="p-3 rounded-full bg-yellow-100">
-              <AlertCircle className="h-6 w-6 text-yellow-600" />
+            <div className="p-3 rounded-full bg-red-100">
+              <AlertCircle className="h-6 w-6 text-red-600" />
             </div>
             <DialogTitle className="text-center text-xl">
-              Attendance Already Marked
+              Face Not Registered
             </DialogTitle>
             <DialogDescription className="text-center">
-              {studentName} has already marked attendance for this activity. You cannot mark attendance multiple times.
+              Your face is not registered in the system. Please contact your administrator to register your face for attendance.
             </DialogDescription>
           </div>
         </DialogHeader>

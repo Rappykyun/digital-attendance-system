@@ -52,8 +52,6 @@ export default function MarkAttendancePage({ params }) {
   };
 
   const handleAttendanceSuccess = async (attendeeData) => {
-    // Don't set success immediately - let the dialog stay open
-    // The success state will be set when user closes the dialog
     setSuccess(true);
   };
 
@@ -87,7 +85,7 @@ export default function MarkAttendancePage({ params }) {
               </div>
               <Button
                 className="mt-4 w-full bg-green-600 hover:bg-green-700"
-                onClick={() => redirect("/")}
+                onClick={() => window.location.href = "/"}
               >
                 Back to Home
               </Button>
@@ -115,7 +113,10 @@ export default function MarkAttendancePage({ params }) {
 
               <Card className="p-6 bg-white shadow-lg">
                 <h2 className="text-xl font-semibold text-green-800 mb-4">Face Recognition</h2>
-                <FaceRecognition onSuccess={handleAttendanceSuccess} />
+                <FaceRecognition 
+                  activityId={params.activityId} 
+                  onSuccess={handleAttendanceSuccess} 
+                />
               </Card>
 
               <Card className="p-6 bg-white shadow-lg">
